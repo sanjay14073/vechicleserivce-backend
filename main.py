@@ -1,26 +1,31 @@
-from flask import Flask, jsonify,request
+from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
+import uuid
+import bcrypt
 
 app = Flask(__name__)
 
-# MySQL Configuration
+# MySQL Configuration choose your port no and password this is a dummy thing i have set up
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:user@127.0.0.1:3307/vechiledbms'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+
 # Example Model
 class Users(db.Model):
     __tablename__ = 'users'
-    user_id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(36), primary_key=True)
     user_name = db.Column(db.String(50))
-    email = db.Column(db.String(50))
+    email = db.Column(db.String(50), unique=True)
     phone_no = db.Column(db.String(14))
     address = db.Column(db.String(60))
+    userpass = db.Column(db.String(255))
+
 
 class Vehicle(db.Model):
     __tablename__ = 'vehicle'
-    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.user_id'), nullable=False)
     owner_name = db.Column(db.String(50))
     vehicle_id = db.Column(db.Integer, primary_key=True, unique=True, nullable=False)
     make = db.Column(db.String(60))
@@ -30,13 +35,16 @@ class Vehicle(db.Model):
     licence_number = db.Column(db.String(20))
     user = db.relationship('Users', backref='vehicle', lazy=True)
 
+
 class RegistrationDocuments(db.Model):
     __tablename__ = 'registration_documents'
     registration_id = db.Column(db.Integer, primary_key=True, nullable=False)
     vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.vehicle_id'), nullable=False)
+    document_name = db.Column(db.String(50))
     document_number = db.Column(db.String(20), unique=True)
     expiration_date = db.Column(db.Date)
     vehicle = db.relationship('Vehicle', backref='registration_documents', lazy=True)
+
 
 class InsuranceDocuments(db.Model):
     __tablename__ = 'insurance_documents'
@@ -49,6 +57,7 @@ class InsuranceDocuments(db.Model):
     upload_date = db.Column(db.Date)
     vehicle = db.relationship('Vehicle', backref='insurance_documents', lazy=True)
 
+
 class InspectionDocuments(db.Model):
     __tablename__ = 'inspection_documents'
     inspection_id = db.Column(db.Integer, primary_key=True, nullable=False)
@@ -57,6 +66,7 @@ class InspectionDocuments(db.Model):
     expiration_date = db.Column(db.Date)
     inspection_station = db.Column(db.String(100))
     vehicle = db.relationship('Vehicle', backref='inspection_documents', lazy=True)
+
 
 class EmissionDocuments(db.Model):
     __tablename__ = 'emission_documents'
@@ -67,6 +77,7 @@ class EmissionDocuments(db.Model):
     expiration_date = db.Column(db.Date)
     vehicle = db.relationship('Vehicle', backref='emission_documents', lazy=True)
 
+
 class ComplaintRegistration(db.Model):
     __tablename__ = 'complaint_registration'
     vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.vehicle_id'), nullable=False, primary_key=True)
@@ -76,24 +87,73 @@ class ComplaintRegistration(db.Model):
     upload_date = db.Column(db.Date)
     file_type = db.Column(db.String(10))
     file_size = db.Column(db.Integer)
+    resolved = db.Column(db.Boolean)
     vehicle = db.relationship('Vehicle', backref='complaint_registration', lazy=True)
 
 
-# Home route
-@app.route('/users', methods=['GET'])
+# Home route brute force search used
+@app.route('/users/signup', methods=['GET', 'POST'])
 def get_all_users():
+    if request.method == 'GET':
+        users = Users.query.all()
+        user_list = []
+        for user in users:
+            user_data = {
+                'user_id': user.user_id,
+                'user_name': user.user_name,
+                'email': user.email,
+                'phone_no': user.phone_no,
+                'address': user.address
+            }
+            user_list.append(user_data)
+        return jsonify({'users': user_list})
+    data = request.get_json(force=True)
+    user_id = data["user_id"]
+    user_email = data["email"]
+    # user_name=data["user_name"]
+    userpass = data["userpass"]
     users = Users.query.all()
     user_list = []
     for user in users:
-        user_data = {
-            'user_id': user.user_id,
-            'user_name': user.user_name,
-            'email': user.email,
-            'phone_no': user.phone_no,
-            'address': user.address
-        }
-        user_list.append(user_data)
-    return jsonify({'users': user_list})
+        if user.email == user_email:
+            return jsonify({"msg": "This user already exits Login"}), 401
+    if user_id != "":
+        return jsonify({"msg": "Logout the user and retry"}), 402
+    u = Users()
+    u.user_id = str(uuid.uuid4())
+    u.email = user_email
+    u.user_name = ""
+    u.phone_no = ""
+    u.address = ""
+    bytes = userpass.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hash = bcrypt.hashpw(bytes, salt)
+    u.userpass = hash
+    db.session.add(u)
+    db.session.commit()
+    return jsonify({"msg": "User created successfully"}), 201
+
+
+# POST route to signup user
+@app.route('/users/signin', methods=['POST'])
+def add_user():
+    data = request.get_json(force=True)
+
+    # Check if the user already exists
+    existing_user = Users.query.filter_by(email=data['email']).first()
+
+    if existing_user:
+        # User already exists, check password
+        bytes_password = data['userpass'].encode('utf-8')
+        hashed_password = bcrypt.hashpw(bytes_password, existing_user.userpass.encode('utf-8'))
+
+        if bcrypt.checkpw(data['userpass'].encode('utf-8'), existing_user.userpass.encode('utf-8')):
+            return jsonify({'msg': 'Password matched', 'uid': existing_user.user_id}), 200
+        else:
+            return jsonify({'msg': 'User signed up but passwords do not match'}), 401
+    else:
+        return jsonify({'msg': 'user does not existss'}), 403
+
 
 # GET route to fetch all vehicles
 @app.route('/vehicles', methods=['GET'])
@@ -114,19 +174,6 @@ def get_all_vehicles():
         vehicle_list.append(vehicle_data)
     return jsonify({'vehicles': vehicle_list})
 
-# POST route to add a new user
-@app.route('/users', methods=['POST'])
-def add_user():
-    data = request.get_json()
-    new_user = Users(
-        user_name=data['user_name'],
-        email=data['email'],
-        phone_no=data['phone_no'],
-        address=data['address']
-    )
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({'message': 'User added successfully'}), 201
 
 # POST route to add a new vehicle
 @app.route('/vehicles', methods=['POST'])
@@ -147,10 +194,158 @@ def add_vehicle():
     return jsonify({'message': 'Vehicle added successfully'}), 201
 
 
+# POST route to register a document
+@app.route('/documents/register', methods=['POST'])
+def register_document():
+    data = request.get_json()
+    new_document = RegistrationDocuments(
+        vehicle_id=data['vehicle_id'],
+        document_name=data['document_name'],
+        document_number=data['document_number'],
+        expiration_date=data['expiration_date']
+    )
+    db.session.add(new_document)
+    db.session.commit()
+    return jsonify({'message': 'Document registered successfully'}), 201
+
+
+# POST route to register a complaint
+@app.route('/complaints/register', methods=['POST'])
+def register_complaint():
+    data = request.get_json()
+    new_complaint = ComplaintRegistration(
+        vehicle_id=data['vehicle_id'],
+        complaint=data['complaint'],
+        complaint_date=data['complaint_date'],
+        file_document_path=data['file_document_path'],
+        upload_date=data['upload_date'],
+        file_type=data['file_type'],
+        file_size=data['file_size'],
+        resolved=data['resolved']
+    )
+    db.session.add(new_complaint)
+    db.session.commit()
+    return jsonify({'message': 'Complaint registered successfully'}), 201
+
+
+# POST route to add insurance information
+@app.route('/insurance/register', methods=['POST'])
+def register_insurance():
+    data = request.get_json()
+    new_insurance = InsuranceDocuments(
+        vehicle_id=data['vehicle_id'],
+        policy_number=data['policy_number'],
+        expire_date=data['expire_date'],
+        file_document_path=data['file_document_path'],
+        docs_status=data['docs_status'],
+        upload_date=data['upload_date']
+    )
+    db.session.add(new_insurance)
+    db.session.commit()
+    return jsonify({'message': 'Insurance information added successfully'}), 201
+
+
+# POST route to add emission information
+@app.route('/emission/register', methods=['POST'])
+def register_emission():
+    data = request.get_json(force=True)
+    new_emission = EmissionDocuments(
+        vehicle_id=data['vehicle_id'],
+        certificate_number=data['certificate_number'],
+        issue_date=data['issue_date'],
+        expiration_date=data['expiration_date']
+    )
+    db.session.add(new_emission)
+    db.session.commit()
+    return jsonify({'message': 'Emission information added successfully'}), 201
+
+
+# get routes
+# GET route to fetch insurance documents for a specific vehicle
+@app.route('/insurance/<int:vehicle_id>', methods=['GET'])
+def get_insurance_documents(vehicle_id):
+    vehicle = Vehicle.query.get(vehicle_id)
+
+    if not vehicle:
+        return jsonify({'msg': 'Vehicle not found'}), 404
+
+    insurance_documents = InsuranceDocuments.query.filter_by(vehicle_id=vehicle_id).all()
+
+    if not insurance_documents:
+        return jsonify({'msg': 'No insurance documents found for the vehicle'}), 404
+
+    insurance_list = []
+    for document in insurance_documents:
+        document_data = {
+            'insurance_id': document.insurance_id,
+            'policy_number': document.policy_number,
+            'expire_date': document.expire_date.strftime('%Y-%m-%d'),
+            'file_document_path': document.file_document_path,
+            'docs_status': document.docs_status,
+            'upload_date': document.upload_date.strftime('%Y-%m-%d')
+        }
+        insurance_list.append(document_data)
+
+    return jsonify({'insurance_documents': insurance_list}), 201
+
+
+# GET route to fetch emission documents for a specific vehicle
+@app.route('/emission/<int:vehicle_id>', methods=['GET'])
+def get_emission_documents(vehicle_id):
+    vehicle = Vehicle.query.get(vehicle_id)
+
+    if not vehicle:
+        return jsonify({'msg': 'Vehicle not found'}), 404
+
+    emission_documents = EmissionDocuments.query.filter_by(vehicle_id=vehicle_id).all()
+
+    if not emission_documents:
+        return jsonify({'msg': 'No emission documents found for the vehicle'}), 404
+
+    emission_list = []
+    for document in emission_documents:
+        document_data = {
+            'emission_id': document.emission_id,
+            'certificate_number': document.certificate_number,
+            'issue_date': document.issue_date.strftime('%Y-%m-%d'),
+            'expiration_date': document.expiration_date.strftime('%Y-%m-%d')
+        }
+        emission_list.append(document_data)
+
+    return jsonify({'emission_documents': emission_list}), 201
+
+
+# GET route to fetch registration documents for a specific vehicle
+@app.route('/registration/<int:vehicle_id>', methods=['GET'])
+def get_registration_documents(vehicle_id):
+    vehicle = Vehicle.query.get(vehicle_id)
+
+    if not vehicle:
+        return jsonify({'msg': 'Vehicle not found'}), 404
+
+    registration_documents = RegistrationDocuments.query.filter_by(vehicle_id=vehicle_id).all()
+
+    if not registration_documents:
+        return jsonify({'msg': 'No registration documents found for the vehicle'}), 404
+
+    registration_list = []
+    for document in registration_documents:
+        document_data = {
+            'registration_id': document.registration_id,
+            'document_name': document.document_name,
+            'document_number': document.document_number,
+            'expiration_date': document.expiration_date.strftime('%Y-%m-%d')
+        }
+        registration_list.append(document_data)
+
+    return jsonify({'registration_documents': registration_list}), 201
+
+
 # admin routes
-@app.route('/admin/control',methods=['GET'])
+@app.route('/admin/control', methods=['GET'])
 def fun1():
-    return "Yes admin route touched"
+    return "Yes admin route touched you can handle the admin logic here"
+
 
 if __name__ == '__main__':
     with app.app_context():
