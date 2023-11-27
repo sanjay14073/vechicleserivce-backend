@@ -107,31 +107,32 @@ def get_all_users():
             }
             user_list.append(user_data)
         return jsonify({'users': user_list})
-    data = request.get_json(force=True)
-    user_id = data["user_id"]
-    user_email = data["email"]
-    # user_name=data["user_name"]
-    userpass = data["userpass"]
-    users = Users.query.all()
-    user_list = []
-    for user in users:
-        if user.email == user_email:
-            return jsonify({"msg": "This user already exits Login"}), 401
-    if user_id != "":
-        return jsonify({"msg": "Logout the user and retry"}), 402
-    u = Users()
-    u.user_id = str(uuid.uuid4())
-    u.email = user_email
-    u.user_name = ""
-    u.phone_no = ""
-    u.address = ""
-    bytes = userpass.encode('utf-8')
-    salt = bcrypt.gensalt()
-    hash = bcrypt.hashpw(bytes, salt)
-    u.userpass = hash
-    db.session.add(u)
-    db.session.commit()
-    return jsonify({"msg": "User created successfully"}), 201
+    if request.method == 'POST':
+        data = request.get_json(force=True)
+        user_id = data["user_id"]
+        user_email = data["email"]
+        # user_name=data["user_name"]
+        userpass = data["userpass"]
+        users = Users.query.all()
+        user_list = []
+        for user in users:
+            if user.email == user_email:
+                return jsonify({"msg": "This user already exits Login"}), 401
+        if user_id != "":
+            return jsonify({"msg": "Logout the user and retry"}), 402
+        u = Users()
+        u.user_id = str(uuid.uuid4())
+        u.email = user_email
+        u.user_name = ""
+        u.phone_no = ""
+        u.address = ""
+        bytes = userpass.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hash = bcrypt.hashpw(bytes, salt)
+        u.userpass = hash
+        db.session.add(u)
+        db.session.commit()
+        return jsonify({"msg": "User created successfully"}), 201
 
 
 # POST route to signup user
@@ -148,7 +149,7 @@ def add_user():
         hashed_password = bcrypt.hashpw(bytes_password, existing_user.userpass.encode('utf-8'))
 
         if bcrypt.checkpw(data['userpass'].encode('utf-8'), existing_user.userpass.encode('utf-8')):
-            return jsonify({'msg': 'Password matched', 'uid': existing_user.user_id}), 200
+            return jsonify({'msg': 'Password matched', 'uid': existing_user.user_id}), 201
         else:
             return jsonify({'msg': 'User signed up but passwords do not match'}), 401
     else:
@@ -156,29 +157,30 @@ def add_user():
 
 
 # GET route to fetch all vehicles
-@app.route('/vehicles', methods=['GET'])
-def get_all_vehicles():
+@app.route('/vehicles/<user_id>', methods=['GET'])
+def get_all_vehicles(user_id):
     vehicles = Vehicle.query.all()
     vehicle_list = []
     for vehicle in vehicles:
-        vehicle_data = {
-            'user_id': vehicle.user_id,
-            'owner_name': vehicle.owner_name,
-            'vehicle_id': vehicle.vehicle_id,
-            'make': vehicle.make,
-            'model': vehicle.model,
-            'make_year': vehicle.make_year,
-            'vehicle_identification_number': vehicle.vehicle_identification_number,
-            'licence_number': vehicle.licence_number
-        }
-        vehicle_list.append(vehicle_data)
+        if  user_id== vehicle.user_id:
+            vehicle_data = {
+                'user_id': vehicle.user_id,
+                'owner_name': vehicle.owner_name,
+                'vehicle_id': vehicle.vehicle_id,
+                'make': vehicle.make,
+                'model': vehicle.model,
+                'make_year': vehicle.make_year,
+                'vehicle_identification_number': vehicle.vehicle_identification_number,
+                'licence_number': vehicle.licence_number
+            }
+            vehicle_list.append(vehicle_data)
     return jsonify({'vehicles': vehicle_list})
 
 
 # POST route to add a new vehicle
 @app.route('/vehicles', methods=['POST'])
 def add_vehicle():
-    data = request.get_json()
+    data = request.get_json(force=True)
     new_vehicle = Vehicle(
         user_id=data['user_id'],
         owner_name=data['owner_name'],
