@@ -236,6 +236,7 @@ def register_complaint():
 def register_insurance():
     data = request.get_json(force=True)
     new_insurance = InsuranceDocuments(
+        insurance_id=data['insurance_id'],
         vehicle_id=data['vehicle_id'],
         policy_number=data['policy_number'],
         expire_date=data['expire_date'],
