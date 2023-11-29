@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 import uuid
 import bcrypt
+from sqlalchemy.orm.exc import NoResultFound
 
 app = Flask(__name__)
 
@@ -162,7 +163,7 @@ def get_all_vehicles(user_id):
     vehicles = Vehicle.query.all()
     vehicle_list = []
     for vehicle in vehicles:
-        if  user_id== vehicle.user_id:
+        if user_id == vehicle.user_id:
             vehicle_data = {
                 'user_id': vehicle.user_id,
                 'owner_name': vehicle.owner_name,
@@ -199,7 +200,7 @@ def add_vehicle():
 # POST route to register a document
 @app.route('/documents/register', methods=['POST'])
 def register_document():
-    data = request.get_json()
+    data = request.get_json(force=True)
     new_document = RegistrationDocuments(
         vehicle_id=data['vehicle_id'],
         document_name=data['document_name'],
@@ -214,7 +215,7 @@ def register_document():
 # POST route to register a complaint
 @app.route('/complaints/register', methods=['POST'])
 def register_complaint():
-    data = request.get_json()
+    data = request.get_json(force=True)
     new_complaint = ComplaintRegistration(
         vehicle_id=data['vehicle_id'],
         complaint=data['complaint'],
@@ -233,7 +234,7 @@ def register_complaint():
 # POST route to add insurance information
 @app.route('/insurance/register', methods=['POST'])
 def register_insurance():
-    data = request.get_json()
+    data = request.get_json(force=True)
     new_insurance = InsuranceDocuments(
         vehicle_id=data['vehicle_id'],
         policy_number=data['policy_number'],
@@ -264,11 +265,11 @@ def register_emission():
 
 # get routes
 # GET route to fetch insurance documents for a specific vehicle
-@app.route('/insurance/<int:vehicle_id>', methods=['GET'])
-def get_insurance_documents(vehicle_id):
-    vehicle = Vehicle.query.get(vehicle_id)
-
-    if not vehicle:
+@app.route('/insurance/<string:user_id>/<int:vehicle_id>', methods=['GET'])
+def get_insurance_documents(user_id, vehicle_id):
+    try:
+        vehicle = Vehicle.query.filter_by(vehicle_id=vehicle_id, user_id=user_id).one()
+    except NoResultFound:
         return jsonify({'msg': 'Vehicle not found'}), 404
 
     insurance_documents = InsuranceDocuments.query.filter_by(vehicle_id=vehicle_id).all()
@@ -292,11 +293,11 @@ def get_insurance_documents(vehicle_id):
 
 
 # GET route to fetch emission documents for a specific vehicle
-@app.route('/emission/<int:vehicle_id>', methods=['GET'])
-def get_emission_documents(vehicle_id):
-    vehicle = Vehicle.query.get(vehicle_id)
-
-    if not vehicle:
+@app.route('/emission/<string:user_id>/<int:vehicle_id>', methods=['GET'])
+def get_emission_documents(user_id, vehicle_id):
+    try:
+        vehicle = Vehicle.query.filter_by(vehicle_id=vehicle_id, user_id=user_id).one()
+    except NoResultFound:
         return jsonify({'msg': 'Vehicle not found'}), 404
 
     emission_documents = EmissionDocuments.query.filter_by(vehicle_id=vehicle_id).all()
@@ -317,12 +318,11 @@ def get_emission_documents(vehicle_id):
     return jsonify({'emission_documents': emission_list}), 201
 
 
-# GET route to fetch registration documents for a specific vehicle
-@app.route('/registration/<int:vehicle_id>', methods=['GET'])
-def get_registration_documents(vehicle_id):
-    vehicle = Vehicle.query.get(vehicle_id)
-
-    if not vehicle:
+@app.route('/registration/<string:user_id>/<int:vehicle_id>', methods=['GET'])
+def get_registration_documents(user_id, vehicle_id):
+    try:
+        vehicle = Vehicle.query.filter_by(vehicle_id=vehicle_id, user_id=user_id).one()
+    except NoResultFound:
         return jsonify({'msg': 'Vehicle not found'}), 404
 
     registration_documents = RegistrationDocuments.query.filter_by(vehicle_id=vehicle_id).all()
