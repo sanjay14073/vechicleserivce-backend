@@ -28,7 +28,7 @@ class Vehicle(db.Model):
     __tablename__ = 'vehicle'
     user_id = db.Column(db.String(36), db.ForeignKey('users.user_id'), nullable=False)
     owner_name = db.Column(db.String(50))
-    vehicle_id = db.Column(db.Integer, primary_key=True, unique=True, nullable=False)
+    vehicle_id = db.Column(db.String(36), primary_key=True, unique=True, nullable=False)
     make = db.Column(db.String(60))
     model = db.Column(db.String(60))
     make_year = db.Column(db.Integer)
@@ -39,8 +39,8 @@ class Vehicle(db.Model):
 
 class RegistrationDocuments(db.Model):
     __tablename__ = 'registration_documents'
-    registration_id = db.Column(db.Integer, primary_key=True, nullable=False)
-    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.vehicle_id'), nullable=False)
+    registration_id = db.Column(db.String(36), primary_key=True, nullable=False)
+    vehicle_id = db.Column(db.String(36), db.ForeignKey('vehicle.vehicle_id'), nullable=False)
     document_name = db.Column(db.String(50))
     document_number = db.Column(db.String(20), unique=True)
     expiration_date = db.Column(db.Date)
@@ -49,8 +49,8 @@ class RegistrationDocuments(db.Model):
 
 class InsuranceDocuments(db.Model):
     __tablename__ = 'insurance_documents'
-    insurance_id = db.Column(db.Integer, primary_key=True, nullable=False)
-    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.vehicle_id'), nullable=False)
+    insurance_id = db.Column(db.String(36), primary_key=True, nullable=False)
+    vehicle_id = db.Column(db.String(36), db.ForeignKey('vehicle.vehicle_id'), nullable=False)
     policy_number = db.Column(db.String(40))
     expire_date = db.Column(db.Date)
     file_document_path = db.Column(db.String(255))
@@ -61,8 +61,8 @@ class InsuranceDocuments(db.Model):
 
 class InspectionDocuments(db.Model):
     __tablename__ = 'inspection_documents'
-    inspection_id = db.Column(db.Integer, primary_key=True, nullable=False)
-    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.vehicle_id'), nullable=False)
+    inspection_id = db.Column(db.String(36), primary_key=True, nullable=False)
+    vehicle_id = db.Column(db.String(36), db.ForeignKey('vehicle.vehicle_id'), nullable=False)
     certificate_number = db.Column(db.String(30))
     expiration_date = db.Column(db.Date)
     inspection_station = db.Column(db.String(100))
@@ -71,8 +71,8 @@ class InspectionDocuments(db.Model):
 
 class EmissionDocuments(db.Model):
     __tablename__ = 'emission_documents'
-    emission_id = db.Column(db.Integer, primary_key=True, nullable=False)
-    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.vehicle_id'), nullable=False)
+    emission_id = db.Column(db.String(36), primary_key=True, nullable=False)
+    vehicle_id = db.Column(db.String(36), db.ForeignKey('vehicle.vehicle_id'), nullable=False)
     certificate_number = db.Column(db.String(30))
     issue_date = db.Column(db.Date)
     expiration_date = db.Column(db.Date)
@@ -81,7 +81,7 @@ class EmissionDocuments(db.Model):
 
 class ComplaintRegistration(db.Model):
     __tablename__ = 'complaint_registration'
-    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.vehicle_id'), nullable=False, primary_key=True)
+    vehicle_id = db.Column(db.String(36), db.ForeignKey('vehicle.vehicle_id'), nullable=False, primary_key=True)
     complaint = db.Column(db.String(500), unique=True)
     complaint_date = db.Column(db.DateTime)
     file_document_path = db.Column(db.String(255))
@@ -266,7 +266,7 @@ def register_emission():
 
 # get routes
 # GET route to fetch insurance documents for a specific vehicle
-@app.route('/insurance/<string:user_id>/<int:vehicle_id>', methods=['GET'])
+@app.route('/insurance/<string:user_id>/<string:vehicle_id>', methods=['GET'])
 def get_insurance_documents(user_id, vehicle_id):
     try:
         vehicle = Vehicle.query.filter_by(vehicle_id=vehicle_id, user_id=user_id).one()
@@ -294,7 +294,7 @@ def get_insurance_documents(user_id, vehicle_id):
 
 
 # GET route to fetch emission documents for a specific vehicle
-@app.route('/emission/<string:user_id>/<int:vehicle_id>', methods=['GET'])
+@app.route('/emission/<string:user_id>/<string:vehicle_id>', methods=['GET'])
 def get_emission_documents(user_id, vehicle_id):
     try:
         vehicle = Vehicle.query.filter_by(vehicle_id=vehicle_id, user_id=user_id).one()
@@ -319,7 +319,7 @@ def get_emission_documents(user_id, vehicle_id):
     return jsonify({'emission_documents': emission_list}), 201
 
 
-@app.route('/registration/<string:user_id>/<int:vehicle_id>', methods=['GET'])
+@app.route('/registration/<string:user_id>/<string:vehicle_id>', methods=['GET'])
 def get_registration_documents(user_id, vehicle_id):
     try:
         vehicle = Vehicle.query.filter_by(vehicle_id=vehicle_id, user_id=user_id).one()
