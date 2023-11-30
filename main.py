@@ -3,9 +3,10 @@ from flask_sqlalchemy import SQLAlchemy
 import uuid
 import bcrypt
 from sqlalchemy.orm.exc import NoResultFound
+from flask_cors import CORS
 
 app = Flask(__name__)
-
+CORS(app)
 # MySQL Configuration choose your port no and password this is a dummy thing i have set up
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:user@127.0.0.1:3307/vechiledbms'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -81,8 +82,8 @@ class EmissionDocuments(db.Model):
 
 class ComplaintRegistration(db.Model):
     __tablename__ = 'complaint_registration'
-    vehicle_id = db.Column(db.String(36), db.ForeignKey('vehicle.vehicle_id'), nullable=False, primary_key=True)
-    complaint = db.Column(db.String(500), unique=True)
+    vehicle_id = db.Column(db.String(36), nullable=False)
+    complaint = db.Column(db.String(500), nullable=False)
     complaint_date = db.Column(db.DateTime)
     file_document_path = db.Column(db.String(255))
     upload_date = db.Column(db.Date)
@@ -157,7 +158,7 @@ def add_user():
         return jsonify({'msg': 'user does not existss'}), 403
 
 
-# GET route to fetch all vehicles
+# GET route to fetch all vehicles of the user
 @app.route('/vehicles/<user_id>', methods=['GET'])
 def get_all_vehicles(user_id):
     vehicles = Vehicle.query.all()
@@ -175,6 +176,26 @@ def get_all_vehicles(user_id):
                 'licence_number': vehicle.licence_number
             }
             vehicle_list.append(vehicle_data)
+    return jsonify({'vehicles': vehicle_list})
+
+
+# Get Route to fetch all vehicles in the database
+@app.route('/vehicles/all', methods=['GET'])
+def vehicles():
+    vehicles = Vehicle.query.all()
+    vehicle_list = []
+    for vehicle in vehicles:
+        vehicle_data = {
+            'user_id': vehicle.user_id,
+            'owner_name': vehicle.owner_name,
+            'vehicle_id': vehicle.vehicle_id,
+            'make': vehicle.make,
+            'model': vehicle.model,
+            'make_year': vehicle.make_year,
+            'vehicle_identification_number': vehicle.vehicle_identification_number,
+            'licence_number': vehicle.licence_number
+        }
+        vehicle_list.append(vehicle_data)
     return jsonify({'vehicles': vehicle_list})
 
 
@@ -202,6 +223,7 @@ def add_vehicle():
 def register_document():
     data = request.get_json(force=True)
     new_document = RegistrationDocuments(
+        registration_id=str(uuid.uuid4()),
         vehicle_id=data['vehicle_id'],
         document_name=data['document_name'],
         document_number=data['document_number'],
@@ -217,6 +239,7 @@ def register_document():
 def register_complaint():
     data = request.get_json(force=True)
     new_complaint = ComplaintRegistration(
+
         vehicle_id=data['vehicle_id'],
         complaint=data['complaint'],
         complaint_date=data['complaint_date'],
@@ -257,7 +280,8 @@ def register_emission():
         vehicle_id=data['vehicle_id'],
         certificate_number=data['certificate_number'],
         issue_date=data['issue_date'],
-        expiration_date=data['expiration_date']
+        expiration_date=data['expiration_date'],
+        emission_id=str(uuid.uuid4()),
     )
     db.session.add(new_emission)
     db.session.commit()
@@ -342,6 +366,26 @@ def get_registration_documents(user_id, vehicle_id):
         registration_list.append(document_data)
 
     return jsonify({'registration_documents': registration_list}), 201
+
+
+@app.route('/get_resolved_complaints/<vehicle_id>', methods=['GET'])
+def get_resolved_complaints(vehicle_id):
+    try:
+        complaints = ComplaintRegistration.query.filter_by(vehicle_id=vehicle_id, resolved=True).all()
+        result = []
+        for complaint in complaints:
+            result.append({
+                'complaint': complaint.complaint,
+                'complaint_date': complaint.complaint_date.strftime('%Y-%m-%d %H:%M:%S'),
+                'file_document_path': complaint.file_document_path,
+                'upload_date': complaint.upload_date.strftime('%Y-%m-%d'),
+                'file_type': complaint.file_type,
+                'file_size': complaint.file_size,
+                'resolved': complaint.resolved
+            })
+        return jsonify({'complaints': result}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 
 # admin routes

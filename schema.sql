@@ -77,7 +77,7 @@ CREATE TABLE EmissionDocuments (
 
 create table Compalint_Registeration(
     vehicle_id varchar(36) not null,
-    complaint varchar(500) primary key,
+    complaint varchar(500) not null,
     complaint_date datetime,
     file_document_path VARCHAR(255),
     upload_date DATE,
