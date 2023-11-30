@@ -79,9 +79,9 @@ class EmissionDocuments(db.Model):
     expiration_date = db.Column(db.Date)
     vehicle = db.relationship('Vehicle', backref='emission_documents', lazy=True)
 
-
 class ComplaintRegistration(db.Model):
     __tablename__ = 'complaint_registration'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     vehicle_id = db.Column(db.String(36), nullable=False)
     complaint = db.Column(db.String(500), nullable=False)
     complaint_date = db.Column(db.DateTime)
@@ -91,6 +91,7 @@ class ComplaintRegistration(db.Model):
     file_size = db.Column(db.Integer)
     resolved = db.Column(db.Boolean)
     vehicle = db.relationship('Vehicle', backref='complaint_registration', lazy=True)
+
 
 
 # Home route brute force search used
@@ -386,6 +387,188 @@ def get_resolved_complaints(vehicle_id):
         return jsonify({'complaints': result}), 201
     except Exception as e:
         return jsonify({'error': str(e)})
+
+
+#delete routes
+# Delete Route for Vehicle
+@app.route('/vehicles/delete/<vehicle_id>', methods=['DELETE'])
+def delete_vehicle(vehicle_id):
+    try:
+        # Check if the vehicle for the specified vehicle_id exists
+        vehicle = Vehicle.query.filter_by(vehicle_id=vehicle_id).first()
+
+        if vehicle is None:
+            return jsonify({'error': 'Vehicle not found'}), 404
+
+        # Delete the vehicle
+        db.session.delete(vehicle)
+        db.session.commit()
+
+        return jsonify({'message': 'Vehicle deleted successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+# Delete Route for Registration Documents
+@app.route('/registration/delete/<vehicle_id>', methods=['DELETE'])
+def delete_registration(vehicle_id):
+    try:
+        # Check if the registration document for the specified vehicle_id exists
+        registration = RegistrationDocuments.query.filter_by(vehicle_id=vehicle_id).first()
+
+        if registration is None:
+            return jsonify({'error': 'Registration document not found'}), 404
+
+        # Delete the registration document
+        db.session.delete(registration)
+        db.session.commit()
+
+        return jsonify({'message': 'Registration document deleted successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+# Delete Route for Insurance Documents
+@app.route('/insurance/delete/<vehicle_id>', methods=['DELETE'])
+def delete_insurance(vehicle_id):
+    try:
+        # Check if the insurance document for the specified vehicle_id exists
+        insurance = InsuranceDocuments.query.filter_by(vehicle_id=vehicle_id).first()
+
+        if insurance is None:
+            return jsonify({'error': 'Insurance document not found'}), 404
+
+        # Delete the insurance document
+        db.session.delete(insurance)
+        db.session.commit()
+
+        return jsonify({'message': 'Insurance document deleted successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+# Delete Route for Emission Documents
+@app.route('/emission/delete/<vehicle_id>', methods=['DELETE'])
+def delete_emission(vehicle_id):
+    try:
+        # Check if the emission document for the specified vehicle_id exists
+        emission = EmissionDocuments.query.filter_by(vehicle_id=vehicle_id).first()
+
+        if emission is None:
+            return jsonify({'error': 'Emission document not found'}), 404
+
+        # Delete the emission document
+        db.session.delete(emission)
+        db.session.commit()
+
+        return jsonify({'message': 'Emission document deleted successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+#Update routes
+@app.route('/vehicles/update/<vehicle_id>', methods=['PUT'])
+def update_vehicle(vehicle_id):
+    try:
+        # Check if the vehicle for the specified vehicle_id exists
+        vehicle = Vehicle.query.filter_by(vehicle_id=vehicle_id).first()
+
+        if vehicle is None:
+            return jsonify({'error': 'Vehicle not found'}), 404
+
+        # Update the vehicle details based on the request data
+        data = request.get_json(force=True)
+        vehicle.owner_name = data.get('owner_name', vehicle.owner_name)
+        vehicle.make = data.get('make', vehicle.make)
+        vehicle.model = data.get('model', vehicle.model)
+        vehicle.make_year = data.get('make_year', vehicle.make_year)
+        vehicle.vehicle_identification_number = data.get('vehicle_identification_number', vehicle.vehicle_identification_number)
+        vehicle.licence_number = data.get('licence_number', vehicle.licence_number)
+
+        db.session.commit()
+
+        return jsonify({'message': 'Vehicle details updated successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/registration/update/<vehicle_id>', methods=['PUT'])
+def update_registration(vehicle_id):
+    try:
+        # Check if the registration document for the specified vehicle_id exists
+        registration = RegistrationDocuments.query.filter_by(vehicle_id=vehicle_id).first()
+
+        if registration is None:
+            return jsonify({'error': 'Registration document not found'}), 404
+
+        # Update the registration document details based on the request data
+        data = request.get_json(force=True)
+        registration.document_name = data.get('document_name', registration.document_name)
+        registration.document_number = data.get('document_number', registration.document_number)
+        registration.expiration_date = data.get('expiration_date', registration.expiration_date)
+
+        db.session.commit()
+
+        return jsonify({'message': 'Registration document updated successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/insurance/update/<vehicle_id>', methods=['PUT'])
+def update_insurance(vehicle_id):
+    try:
+        # Check if the insurance document for the specified vehicle_id exists
+        insurance = InsuranceDocuments.query.filter_by(vehicle_id=vehicle_id).first()
+
+        if insurance is None:
+            return jsonify({'error': 'Insurance document not found'}), 404
+
+        # Update the insurance document details based on the request data
+        data = request.get_json(force=True)
+        insurance.policy_number = data.get('policy_number', insurance.policy_number)
+        insurance.expire_date = data.get('expire_date', insurance.expire_date)
+        insurance.file_document_path = data.get('file_document_path', insurance.file_document_path)
+        insurance.docs_status = data.get('docs_status', insurance.docs_status)
+        insurance.upload_date = data.get('upload_date', insurance.upload_date)
+
+        db.session.commit()
+
+        return jsonify({'message': 'Insurance document updated successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/emission/update/<vehicle_id>', methods=['PUT'])
+def update_emission(vehicle_id):
+    try:
+        # Check if the emission document for the specified vehicle_id exists
+        emission = EmissionDocuments.query.filter_by(vehicle_id=vehicle_id).first()
+
+        if emission is None:
+            return jsonify({'error': 'Emission document not found'}), 404
+
+        # Update the emission document details based on the request data
+        data = request.get_json(force=True)
+        emission.certificate_number = data.get('certificate_number', emission.certificate_number)
+        emission.issue_date = data.get('issue_date', emission.issue_date)
+        emission.expiration_date = data.get('expiration_date', emission.expiration_date)
+
+        db.session.commit()
+
+        return jsonify({'message': 'Emission document updated successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 
 # admin routes
