@@ -79,10 +79,11 @@ class EmissionDocuments(db.Model):
     expiration_date = db.Column(db.Date)
     vehicle = db.relationship('Vehicle', backref='emission_documents', lazy=True)
 
+
 class ComplaintRegistration(db.Model):
     __tablename__ = 'complaint_registration'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    vehicle_id = db.Column(db.String(36), nullable=False)
+    vehicle_id = db.Column(db.String(36), db.ForeignKey('vehicle.vehicle_id'), nullable=False)
     complaint = db.Column(db.String(500), nullable=False)
     complaint_date = db.Column(db.DateTime)
     file_document_path = db.Column(db.String(255))
@@ -90,8 +91,7 @@ class ComplaintRegistration(db.Model):
     file_type = db.Column(db.String(10))
     file_size = db.Column(db.Integer)
     resolved = db.Column(db.Boolean)
-    vehicle = db.relationship('Vehicle', backref='complaint_registration', lazy=True)
-
+    vehicle = db.relationship('Vehicle', backref='complaints', lazy=True)
 
 
 # Home route brute force search used
@@ -306,6 +306,7 @@ def get_insurance_documents(user_id, vehicle_id):
     insurance_list = []
     for document in insurance_documents:
         document_data = {
+            'vehicle_id':document.vehicle_id,
             'insurance_id': document.insurance_id,
             'policy_number': document.policy_number,
             'expire_date': document.expire_date.strftime('%Y-%m-%d'),
@@ -334,6 +335,7 @@ def get_emission_documents(user_id, vehicle_id):
     emission_list = []
     for document in emission_documents:
         document_data = {
+            'vehicle_id': document.vehicle_id,
             'emission_id': document.emission_id,
             'certificate_number': document.certificate_number,
             'issue_date': document.issue_date.strftime('%Y-%m-%d'),
@@ -359,6 +361,7 @@ def get_registration_documents(user_id, vehicle_id):
     registration_list = []
     for document in registration_documents:
         document_data = {
+            'vehicle_id':document.vehicle_id,
             'registration_id': document.registration_id,
             'document_name': document.document_name,
             'document_number': document.document_number,
@@ -384,14 +387,17 @@ def get_resolved_complaints(vehicle_id):
                 'file_size': complaint.file_size,
                 'resolved': complaint.resolved
             })
+        if result==[]:
+            return jsonify({'msg':"no active complaints"}),404
+
         return jsonify({'complaints': result}), 201
     except Exception as e:
         return jsonify({'error': str(e)})
 
 
-#delete routes
+# delete routes
 # Delete Route for Vehicle
-@app.route('/vehicles/delete/<vehicle_id>', methods=['DELETE'])
+@app.route('/vehicles/delete/<string:vehicle_id>', methods=['DELETE'])
 def delete_vehicle(vehicle_id):
     try:
         # Check if the vehicle for the specified vehicle_id exists
@@ -409,6 +415,7 @@ def delete_vehicle(vehicle_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
 
 # Delete Route for Registration Documents
 @app.route('/registration/delete/<vehicle_id>', methods=['DELETE'])
@@ -430,6 +437,7 @@ def delete_registration(vehicle_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+
 # Delete Route for Insurance Documents
 @app.route('/insurance/delete/<vehicle_id>', methods=['DELETE'])
 def delete_insurance(vehicle_id):
@@ -449,6 +457,7 @@ def delete_insurance(vehicle_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
 
 # Delete Route for Emission Documents
 @app.route('/emission/delete/<vehicle_id>', methods=['DELETE'])
@@ -470,7 +479,8 @@ def delete_emission(vehicle_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-#Update routes
+
+# Update routes
 @app.route('/vehicles/update/<vehicle_id>', methods=['PUT'])
 def update_vehicle(vehicle_id):
     try:
@@ -486,8 +496,6 @@ def update_vehicle(vehicle_id):
         vehicle.make = data.get('make', vehicle.make)
         vehicle.model = data.get('model', vehicle.model)
         vehicle.make_year = data.get('make_year', vehicle.make_year)
-        vehicle.vehicle_identification_number = data.get('vehicle_identification_number', vehicle.vehicle_identification_number)
-        vehicle.licence_number = data.get('licence_number', vehicle.licence_number)
 
         db.session.commit()
 
@@ -496,6 +504,7 @@ def update_vehicle(vehicle_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/registration/update/<vehicle_id>', methods=['PUT'])
 def update_registration(vehicle_id):
