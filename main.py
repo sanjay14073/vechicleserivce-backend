@@ -493,9 +493,9 @@ def update_vehicle(vehicle_id):
         # Update the vehicle details based on the request data
         data = request.get_json(force=True)
         vehicle.owner_name = data.get('owner_name', vehicle.owner_name)
-        vehicle.make = data.get('make', vehicle.make)
+        vehicle.vehicle_identification_number = data.get('vehicle_identification_number', vehicle.vehicle_identification_number)
         vehicle.model = data.get('model', vehicle.model)
-        vehicle.make_year = data.get('make_year', vehicle.make_year)
+        vehicle.licence_number= data.get('licence_number', vehicle.licence_number)
 
         db.session.commit()
 
